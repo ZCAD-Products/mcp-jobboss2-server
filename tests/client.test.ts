@@ -1,0 +1,90 @@
+import { JobBOSS2Client } from '../src/jobboss2-client';
+import nock from 'nock';
+
+describe('JobBOSS2Client', () => {
+    const config = {
+        apiUrl: 'https://api.jobboss2.com',
+        apiKey: 'test-key',
+        apiSecret: 'test-secret',
+        tokenUrl: 'https://api.jobboss2.com/oauth/token',
+    };
+
+    let client: JobBOSS2Client;
+
+    beforeEach(() => {
+        client = new JobBOSS2Client(config);
+        nock.cleanAll();
+    });
+
+    it('should fetch an access token', async () => {
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(200, {
+                access_token: 'mock-access-token',
+                expires_in: 3600,
+                token_type: 'Bearer',
+            });
+
+        // We can't easily test private methods, but making a call should trigger token fetch
+        nock('https://api.jobboss2.com')
+            .get('/api/v1/orders')
+            .reply(200, { Data: [] });
+
+        await client.getOrders({});
+        // If no error, token fetch worked
+    });
+
+    it('should get orders', async () => {
+        // Mock token call
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(200, {
+                access_token: 'mock-access-token',
+                expires_in: 3600,
+            });
+
+        const mockOrders = [{ orderNumber: '123' }, { orderNumber: '456' }];
+
+        nock('https://api.jobboss2.com')
+            .get('/api/v1/orders')
+            .query(true) // Match any query params
+            .reply(200, { Data: mockOrders });
+
+        const orders = await client.getOrders({});
+        expect(orders).toEqual(mockOrders);
+    });
+
+    it('should create an order', async () => {
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(200, {
+                access_token: 'mock-access-token',
+                expires_in: 3600,
+            });
+
+        const newOrder = { customerCode: 'ACME' };
+        const createdOrder = { orderNumber: '789', ...newOrder };
+
+        nock('https://api.jobboss2.com')
+            .post('/api/v1/orders', newOrder)
+            .reply(200, { Data: createdOrder });
+
+        const result = await client.createOrder(newOrder);
+        expect(result).toEqual(createdOrder);
+    });
+
+    it('should handle API errors', async () => {
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(200, {
+                access_token: 'mock-access-token',
+                expires_in: 3600,
+            });
+
+        nock('https://api.jobboss2.com')
+            .get('/api/v1/orders')
+            .reply(500, { Message: 'Internal Server Error' });
+
+        await expect(client.getOrders({})).rejects.toThrow('JobBOSS2 API Error: 500');
+    });
+});
