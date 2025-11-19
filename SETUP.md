@@ -44,7 +44,7 @@ npm run build
        "jobboss2": {
          "command": "node",
          "args": [
-           "C:\\Users\\zacha\\mcp-jobboss2-server\\dist\\index.js"
+           "C:\\path\\to\\mcp-jobboss2-server\\dist\\index.js"
          ],
          "env": {
            "JOBBOSS2_API_URL": "https://your-instance.ecisolutions.com/api",
