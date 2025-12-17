@@ -25,14 +25,30 @@ Contact ECI Solutions to:
 
 ## Step 3: Install and Build
 
+### For TypeScript (Recommended for Production)
 ```bash
 npm install
 npm run build
 ```
 
+### For Python (Great for Development/CLI)
+```bash
+pip install -r requirements.txt
+```
+
 ## Step 4: Verify It Works
 
-Once your MCP client is configured to use this server, try asking:
+### Running the Server
+
+**TypeScript**:
+```bash
+npm start
+```
+
+**Python**:
+```bash
+fastmcp run server.py
+```
 
 > "Can you list the available tools from the JobBOSS2 server?"
 

@@ -32,39 +32,29 @@ This MCP server provides comprehensive access to JobBOSS2 APIs:
 
 ## Installation
 
+### TypeScript Version
 1. Clone or download this repository
+2. Install dependencies: `npm install`
+3. Build the server: `npm run build`
 
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create a `.env` file based on `.env.example`:
-```bash
-cp .env.example .env
-```
-
-4. Edit `.env` and add your JobBOSS2 API credentials:
-```env
-JOBBOSS2_API_URL=https://api-jb2.integrations.ecimanufacturing.com:443
-JOBBOSS2_OAUTH_TOKEN_URL=https://api-user.integrations.ecimanufacturing.com:443/oauth2/api-user/token
-JOBBOSS2_API_KEY=your-api-key-here
-JOBBOSS2_API_SECRET=your-api-secret-here
-API_TIMEOUT=30000
-```
-
-5. Build the server:
-```bash
-npm run build
-```
+### Python Version
+1. Clone or download this repository
+2. Install dependencies: `pip install -r requirements.txt`
 
 ## Usage
 
-### Running Standalone
-
-To run the server directly:
+### Running TypeScript Server
 ```bash
 npm start
+```
+
+### Running Python Server
+```bash
+fastmcp run server.py
+```
+or
+```bash
+python server.py
 ```
 
 ## Available Tools
