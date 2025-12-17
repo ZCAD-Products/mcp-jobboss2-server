@@ -145,3 +145,32 @@ def register_inventory_tools(mcp: FastMCP, client: JobBOSS2Client):
         params = {"fields": fields} if fields else None
         return await client.api_call("GET", f"vendors/{vendorCode}", params=params)
 
+    @mcp.tool()
+    async def get_po_bundle(
+        poNumber: str,
+        fields: str = None,
+        lineItemFields: str = None,
+        includeReleases: bool = True,
+    ) -> Dict[str, Any]:
+        """Retrieve a purchase order with its line items and optionally releases in a single call. Returns a complete bundle for the PO."""
+        # Fetch PO header
+        po_params = {"fields": fields} if fields else None
+        purchase_order = await client.api_call("GET", f"purchase-orders/{poNumber}", params=po_params)
+        
+        # Fetch line items for this PO
+        li_params: Dict[str, Any] = {"purchaseOrderNumber": poNumber}
+        if lineItemFields:
+            li_params["fields"] = lineItemFields
+        line_items = await client.api_call("GET", "purchase-order-line-items", params=li_params)
+        
+        # Optionally fetch releases
+        releases = []
+        if includeReleases:
+            releases = await client.api_call("GET", "purchase-order-releases", params={"purchaseOrderNumber": poNumber})
+        
+        return {
+            "purchaseOrder": purchase_order,
+            "lineItems": line_items,
+            "releases": releases if includeReleases else None,
+        }
+

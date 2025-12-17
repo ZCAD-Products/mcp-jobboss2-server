@@ -11,6 +11,7 @@ import {
     GetPurchaseOrderByNumberSchema,
     GetVendorByCodeSchema,
     QueryOnlyToolInputSchema,
+    GetPOBundleSchema,
 } from '../schemas.js';
 
 export const inventoryTools: Tool[] = [
@@ -182,6 +183,20 @@ export const inventoryTools: Tool[] = [
             required: ['vendorCode'],
         },
     },
+    {
+        name: 'get_po_bundle',
+        description: 'Retrieve a purchase order with its line items and optionally releases in a single call. Returns a complete bundle for the PO.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                poNumber: { type: 'string', description: 'Purchase order number' },
+                fields: { type: 'string', description: 'Fields for the PO header' },
+                lineItemFields: { type: 'string', description: 'Fields for line items' },
+                includeReleases: { type: 'boolean', description: 'Include releases for line items (default true)' },
+            },
+            required: ['poNumber'],
+        },
+    },
 ];
 
 export const inventoryHandlers: Record<string, (args: any, client: JobBOSS2Client) => Promise<any>> = {
@@ -247,5 +262,28 @@ export const inventoryHandlers: Record<string, (args: any, client: JobBOSS2Clien
     get_vendor_by_code: async (args, client) => {
         const { vendorCode, fields } = GetVendorByCodeSchema.parse(args);
         return client.getVendorByCode(vendorCode, { fields });
+    },
+    get_po_bundle: async (args, client) => {
+        const { poNumber, fields, lineItemFields, includeReleases = true } = GetPOBundleSchema.parse(args);
+        
+        // Fetch PO header
+        const purchaseOrder = await client.getPurchaseOrderByNumber(poNumber, fields ? { fields } : undefined);
+        
+        // Fetch line items for this PO
+        const lineItemParams: any = { purchaseOrderNumber: poNumber };
+        if (lineItemFields) lineItemParams.fields = lineItemFields;
+        const lineItems = await client.getPurchaseOrderLineItems(lineItemParams);
+        
+        // Optionally fetch releases
+        let releases: any[] = [];
+        if (includeReleases) {
+            releases = await client.getPurchaseOrderReleases({ purchaseOrderNumber: poNumber });
+        }
+        
+        return {
+            purchaseOrder,
+            lineItems,
+            releases: includeReleases ? releases : undefined,
+        };
     },
 };

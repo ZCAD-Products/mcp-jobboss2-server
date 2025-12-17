@@ -8,6 +8,7 @@ import {
     GetRoutingByPartSchema,
     GetWorkCenterByCodeSchema,
     QueryOnlyToolInputSchema,
+    GetEstimateMaterialBySubPartSchema,
 } from '../schemas.js';
 
 export const productionTools: Tool[] = [
@@ -117,6 +118,19 @@ export const productionTools: Tool[] = [
             required: ['workCenter'],
         },
     },
+    {
+        name: 'get_estimate_material_by_sub_part',
+        description: 'Retrieve a specific material of an estimate by the parent part number and sub-part (material) number. Useful for checking bill of materials details.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                partNumber: { type: 'string', description: 'The parent estimate part number' },
+                subPartNumber: { type: 'string', description: 'The sub-part (material) part number' },
+                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
+            },
+            required: ['partNumber', 'subPartNumber'],
+        },
+    },
 ];
 
 export const productionHandlers: Record<string, (args: any, client: JobBOSS2Client) => Promise<any>> = {
@@ -150,5 +164,14 @@ export const productionHandlers: Record<string, (args: any, client: JobBOSS2Clie
     get_work_center_by_code: async (args, client) => {
         const { workCenter, fields } = GetWorkCenterByCodeSchema.parse(args);
         return client.getWorkCenterByCode(workCenter, { fields });
+    },
+    get_estimate_material_by_sub_part: async (args, client) => {
+        const { partNumber, subPartNumber, fields } = GetEstimateMaterialBySubPartSchema.parse(args);
+        return client.apiCall(
+            'GET',
+            `/api/v1/estimates/${encodeURIComponent(partNumber)}/materials/${encodeURIComponent(subPartNumber)}`,
+            undefined,
+            fields ? { fields } : undefined
+        );
     },
 };

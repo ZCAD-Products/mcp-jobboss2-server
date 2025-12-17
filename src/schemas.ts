@@ -403,7 +403,7 @@ export const UpdateEstimateSchema = z.object({
   user_Text4: z.string().nullable().optional(),
 }).catchall(z.any());
 
-// Shared helpers for new resource schemas
+// Shared helpers for new resource schemas (moved up for dependency order)
 export const StringIdSchema = z.preprocess(
   (value) => {
     if (typeof value === 'number') {
@@ -413,6 +413,71 @@ export const StringIdSchema = z.preprocess(
   },
   z.string()
 );
+
+// Estimate Material schema (for sub-part lookup)
+export const GetEstimateMaterialBySubPartSchema = z.object({
+  partNumber: z.string().describe('The parent estimate part number'),
+  subPartNumber: z.string().describe('The sub-part (material) part number'),
+  fields: z.string().optional().describe('Comma-separated list of fields to return'),
+});
+
+// Order Release schemas
+export const CreateOrderReleaseSchema = z.object({
+  orderNumber: z.string().describe('Order number'),
+  itemNumber: StringIdSchema.describe('Order line item number'),
+  dueDate: z.string().nullable().optional().describe('Release due date (ISO format)'),
+  jobNumber: z.string().nullable().optional().describe('Job number for the release'),
+  priority: z.number().nullable().optional().describe('Release priority'),
+  quantityOrdered: z.number().nullable().optional().describe('Quantity ordered for this release'),
+  quantityShipped: z.number().nullable().optional().describe('Quantity already shipped'),
+  shipCode: z.string().nullable().optional().describe('Ship code'),
+  status: z.string().nullable().optional().describe('Release status'),
+  user_Currency1: z.number().nullable().optional(),
+  user_Currency2: z.number().nullable().optional(),
+  user_Date1: z.string().nullable().optional(),
+  user_Date2: z.string().nullable().optional(),
+  user_Memo1: z.string().nullable().optional(),
+  user_Number1: z.number().nullable().optional(),
+  user_Number2: z.number().nullable().optional(),
+  user_Number3: z.number().nullable().optional(),
+  user_Number4: z.number().nullable().optional(),
+  user_Text1: z.string().nullable().optional(),
+  user_Text2: z.string().nullable().optional(),
+  user_Text3: z.string().nullable().optional(),
+  user_Text4: z.string().nullable().optional(),
+}).catchall(z.any());
+
+export const GetOrderReleaseByIdSchema = z.object({
+  orderNumber: z.string().describe('Order number'),
+  itemNumber: StringIdSchema.describe('Order line item number'),
+  uniqueID: StringIdSchema.describe('Release unique ID'),
+  fields: z.string().optional().describe('Comma-separated list of fields to return'),
+});
+
+// Workflow bundle schemas
+export const GetOrderBundleSchema = z.object({
+  orderNumber: z.string().describe('The order number to retrieve'),
+  fields: z.string().optional().describe('Fields for the order header'),
+  lineItemFields: z.string().optional().describe('Fields for line items'),
+  routingFields: z.string().optional().describe('Fields for routings'),
+  includeRoutings: z.boolean().optional().describe('Include routings for each line item (default true)'),
+});
+
+export const CreateOrderFromQuoteSchema = z.object({
+  quoteNumber: z.string().describe('Source quote number'),
+  customerCode: z.string().optional().describe('Customer code (defaults to quote customer)'),
+  orderNumber: z.string().optional().describe('Order number (optional if auto-numbering)'),
+  copyAllLineItems: z.boolean().optional().describe('Copy all line items from quote (default true)'),
+  lineItemNumbers: z.array(z.number()).optional().describe('Specific line item numbers to copy (if not copying all)'),
+  overrides: z.record(z.any()).optional().describe('Field overrides for the new order'),
+});
+
+export const GetPOBundleSchema = z.object({
+  poNumber: z.string().describe('Purchase order number'),
+  fields: z.string().optional().describe('Fields for the PO header'),
+  lineItemFields: z.string().optional().describe('Fields for line items'),
+  includeReleases: z.boolean().optional().describe('Include releases for line items (default true)'),
+});
 
 export const GetJobMaterialByIdSchema = z.object({
   uniqueID: StringIdSchema.describe('Unique ID of the job material'),
@@ -475,6 +540,8 @@ export const GetRoutingByPartSchema = z.object({
   stepNumber: StringIdSchema.describe('Routing step number'),
   fields: z.string().optional().describe('Comma-separated list of fields to return'),
 });
+
+export const GetOrderReleasesSchema = QueryParamsSchema.describe('Query parameters for getting order releases');
 
 export const GetTimeTicketDetailByIdSchema = z.object({
   timeTicketGUID: z.string().describe('Time ticket detail GUID'),

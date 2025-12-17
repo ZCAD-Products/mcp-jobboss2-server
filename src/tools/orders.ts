@@ -13,6 +13,11 @@ import {
     GetOrderRoutingByKeysSchema,
     CreateOrderRoutingSchema,
     UpdateOrderRoutingSchema,
+    CreateOrderReleaseSchema,
+    GetOrderReleaseByIdSchema,
+    GetOrderReleasesSchema,
+    GetOrderBundleSchema,
+    CreateOrderFromQuoteSchema,
 } from '../schemas.js';
 
 export const orderTools: Tool[] = [
@@ -216,16 +221,34 @@ export const orderTools: Tool[] = [
         },
     },
     {
+        name: 'get_order_releases',
+        description: 'Retrieve a list of order releases with optional filtering, sorting, and pagination.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                fields: { type: 'string', description: 'Comma-separated list of fields' },
+                sort: { type: 'string', description: 'Sort expression' },
+                skip: { type: 'number', description: 'Skip N records' },
+                take: { type: 'number', description: 'Take N records' },
+            },
+            additionalProperties: true,
+        },
+    },
+    {
         name: 'create_order_release',
-        description: 'Create a release for a specific order line item.',
+        description: 'Create a release for a specific order line item. Releases define delivery schedules with due dates and quantities.',
         inputSchema: {
             type: 'object',
             properties: {
                 orderNumber: { type: 'string', description: 'Order number' },
-                itemNumber: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Order line item number',
-                },
+                itemNumber: { oneOf: [{ type: 'string' }, { type: 'number' }], description: 'Order line item number' },
+                dueDate: { type: 'string', description: 'Release due date (ISO format: yyyy-MM-dd)' },
+                jobNumber: { type: 'string', description: 'Job number for the release' },
+                priority: { type: 'number', description: 'Release priority' },
+                quantityOrdered: { type: 'number', description: 'Quantity ordered for this release' },
+                quantityShipped: { type: 'number', description: 'Quantity already shipped' },
+                shipCode: { type: 'string', description: 'Ship code' },
+                status: { type: 'string', description: 'Release status' },
             },
             required: ['orderNumber', 'itemNumber'],
             additionalProperties: true,
@@ -238,17 +261,42 @@ export const orderTools: Tool[] = [
             type: 'object',
             properties: {
                 orderNumber: { type: 'string', description: 'Order number' },
-                itemNumber: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Order line item number',
-                },
-                uniqueID: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Release unique ID',
-                },
-                fields: { type: 'string', description: 'Optional comma-separated fields' },
+                itemNumber: { oneOf: [{ type: 'string' }, { type: 'number' }], description: 'Order line item number' },
+                uniqueID: { oneOf: [{ type: 'string' }, { type: 'number' }], description: 'Release unique ID' },
+                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
             },
             required: ['orderNumber', 'itemNumber', 'uniqueID'],
+        },
+    },
+    {
+        name: 'get_order_bundle',
+        description: 'Retrieve an order with its line items and optionally routings in a single call. Returns a complete bundle for the order.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                orderNumber: { type: 'string', description: 'The order number to retrieve' },
+                fields: { type: 'string', description: 'Fields for the order header' },
+                lineItemFields: { type: 'string', description: 'Fields for line items' },
+                routingFields: { type: 'string', description: 'Fields for routings' },
+                includeRoutings: { type: 'boolean', description: 'Include routings for each line item (default true)' },
+            },
+            required: ['orderNumber'],
+        },
+    },
+    {
+        name: 'create_order_from_quote',
+        description: 'Create a new order from an existing quote, copying customer info and line items. Streamlines quote-to-order conversion.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                quoteNumber: { type: 'string', description: 'Source quote number' },
+                customerCode: { type: 'string', description: 'Customer code (defaults to quote customer)' },
+                orderNumber: { type: 'string', description: 'Order number (optional if auto-numbering enabled)' },
+                copyAllLineItems: { type: 'boolean', description: 'Copy all line items from quote (default true)' },
+                lineItemNumbers: { type: 'array', items: { type: 'number' }, description: 'Specific line item numbers to copy (if not copying all)' },
+                overrides: { type: 'object', description: 'Field overrides for the new order' },
+            },
+            required: ['quoteNumber'],
         },
     },
 ];
@@ -302,17 +350,100 @@ export const orderHandlers: Record<string, (args: any, client: JobBOSS2Client) =
         const { orderNumber, itemNumber, stepNumber, ...updateData } = UpdateOrderRoutingSchema.parse(args);
         return client.updateOrderRouting(orderNumber, itemNumber, stepNumber, updateData);
     },
+    get_order_releases: async (args, client) => {
+        const params = GetOrderReleasesSchema.parse(args);
+        return client.apiCall('GET', '/api/v1/releases', undefined, params);
+    },
     create_order_release: async (args, client) => {
-        const { orderNumber, itemNumber, ...payload } = args; // Schema validation can be added if strict schema exists
-        return client.apiCall('POST', `/api/v1/orders/${orderNumber}/order-line-items/${itemNumber}/releases`, payload);
+        const { orderNumber, itemNumber, ...payload } = CreateOrderReleaseSchema.parse(args);
+        return client.apiCall(
+            'POST',
+            `/api/v1/orders/${encodeURIComponent(orderNumber)}/order-line-items/${encodeURIComponent(itemNumber)}/releases`,
+            payload
+        );
     },
     get_order_release_by_id: async (args, client) => {
-        const { orderNumber, itemNumber, uniqueID, fields } = args;
+        const { orderNumber, itemNumber, uniqueID, fields } = GetOrderReleaseByIdSchema.parse(args);
         return client.apiCall(
             'GET',
-            `/api/v1/orders/${orderNumber}/order-line-items/${itemNumber}/releases/${uniqueID}`,
+            `/api/v1/orders/${encodeURIComponent(orderNumber)}/order-line-items/${encodeURIComponent(itemNumber)}/releases/${encodeURIComponent(uniqueID)}`,
             undefined,
             fields ? { fields } : undefined
         );
+    },
+    get_order_bundle: async (args, client) => {
+        const { orderNumber, fields, lineItemFields, routingFields, includeRoutings = true } = GetOrderBundleSchema.parse(args);
+        
+        // Fetch order header
+        const order = await client.getOrderById(orderNumber, fields ? { fields } : undefined);
+        
+        // Fetch line items
+        const lineItems = await client.getOrderLineItems(orderNumber, lineItemFields ? { fields: lineItemFields } : undefined);
+        
+        // Optionally fetch routings for each line item
+        let routings: any[] = [];
+        if (includeRoutings && Array.isArray(lineItems)) {
+            const routingParams: any = { [`orderNumber`]: orderNumber };
+            if (routingFields) routingParams.fields = routingFields;
+            routings = await client.getOrderRoutings(routingParams);
+        }
+        
+        return {
+            order,
+            lineItems,
+            routings: includeRoutings ? routings : undefined,
+        };
+    },
+    create_order_from_quote: async (args, client) => {
+        const { quoteNumber, customerCode, orderNumber, copyAllLineItems = true, lineItemNumbers, overrides = {} } = CreateOrderFromQuoteSchema.parse(args);
+        
+        // Fetch the quote
+        const quote = await client.getQuoteById(quoteNumber);
+        
+        // Fetch quote line items
+        const allQuoteLineItems = await client.getQuoteLineItems({ quoteNumber });
+        
+        // Filter line items if specific ones requested
+        let lineItemsToCopy = allQuoteLineItems;
+        if (!copyAllLineItems && lineItemNumbers && lineItemNumbers.length > 0) {
+            lineItemsToCopy = allQuoteLineItems.filter((item: any) => 
+                lineItemNumbers.includes(item.itemNumber)
+            );
+        }
+        
+        // Build order payload
+        const orderPayload: any = {
+            customerCode: customerCode || quote.customerCode,
+            quoteNumber: quoteNumber,
+            ...overrides,
+        };
+        if (orderNumber) {
+            orderPayload.orderNumber = orderNumber;
+        }
+        
+        // Map quote line items to order line items
+        if (Array.isArray(lineItemsToCopy) && lineItemsToCopy.length > 0) {
+            orderPayload.orderLineItems = lineItemsToCopy.map((qli: any) => ({
+                partNumber: qli.partNumber,
+                partDescription: qli.partDescription || qli.description,
+                quantityOrdered: qli.quantityOrdered || qli.quantity,
+                unitPrice: qli.unitPrice || qli.price,
+                quoteNumber: quoteNumber,
+                quoteItemNumber: qli.itemNumber,
+                productCode: qli.productCode,
+                pricingUnit: qli.pricingUnit,
+                revision: qli.revision,
+            }));
+        }
+        
+        // Create the order
+        const newOrder = await client.createOrder(orderPayload);
+        
+        return {
+            success: true,
+            order: newOrder,
+            lineItemsCopied: lineItemsToCopy?.length || 0,
+            sourceQuote: quoteNumber,
+        };
     },
 };

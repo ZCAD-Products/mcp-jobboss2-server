@@ -60,3 +60,13 @@ def register_production_tools(mcp: FastMCP, client: JobBOSS2Client):
         params = {"fields": fields} if fields else None
         return await client.api_call("GET", f"work-centers/{workCenter}", params=params)
 
+    @mcp.tool()
+    async def get_estimate_material_by_sub_part(
+        partNumber: str,
+        subPartNumber: str,
+        fields: str = None
+    ) -> Dict[str, Any]:
+        """Retrieve a specific material of an estimate by the parent part number and sub-part (material) number. Useful for checking bill of materials details."""
+        params = {"fields": fields} if fields else None
+        return await client.api_call("GET", f"estimates/{partNumber}/materials/{subPartNumber}", params=params)
+
