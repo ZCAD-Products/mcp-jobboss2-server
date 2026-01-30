@@ -71,13 +71,29 @@ class JobBOSS2Client:
     ) -> Any:
         await self.ensure_valid_token()
 
+        normalized_method = method.upper()
+        if normalized_method not in {"GET", "POST", "PUT", "DELETE", "PATCH"}:
+            raise ValueError(f"Invalid HTTP method: {method}")
+
+        normalized_endpoint = endpoint.strip()
+        if not normalized_endpoint:
+            raise ValueError("Endpoint is required")
+        if "://" in normalized_endpoint:
+            raise ValueError("Endpoint must be a relative path")
+        if ".." in normalized_endpoint or "\\" in normalized_endpoint:
+            raise ValueError("Invalid endpoint path")
+
         # Ensure endpoint starts with /api/v1/ if not already present
-        url = endpoint if endpoint.startswith("/api/v1/") else f"/api/v1/{endpoint.lstrip('/')}"
+        url = (
+            normalized_endpoint
+            if normalized_endpoint.startswith("/api/v1/")
+            else f"/api/v1/{normalized_endpoint.lstrip('/')}"
+        )
 
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         response = await self.client.request(
-            method=method,
+            method=normalized_method,
             url=url,
             json=data,
             params=params,
@@ -85,7 +101,7 @@ class JobBOSS2Client:
         )
 
         if response.status_code >= 400:
-            raise Exception(f"JobBOSS2 API Error: {response.status_code} - {response.text}")
+            raise Exception(f"JobBOSS2 API Error: {response.status_code}")
 
         if response.status_code == 204:
             return None
@@ -126,5 +142,4 @@ class JobBOSS2Client:
             params["employeeCode[in]"] = "|".join(map(str, employee_codes))
 
         return await self.api_call("GET", "attendance-ticket-details", params=params)
-
 

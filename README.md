@@ -397,7 +397,7 @@ Generate a comprehensive attendance report for a date range. **This is the recom
 ### Custom Operations
 
 #### `custom_api_call`
-Make a custom API call to any JobBOSS2 API endpoint. Endpoint paths will automatically be prefixed with `/api/v1/` if not already present.
+Make a custom API call to any JobBOSS2 API endpoint. Endpoint paths will automatically be prefixed with `/api/v1/` if not already present. Only relative paths are accepted, and path traversal segments (like `..`) are rejected for safety.
 
 **Parameters:**
 - `method` (required): HTTP method (GET, POST, PUT, DELETE, PATCH)

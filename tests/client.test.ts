@@ -85,6 +85,16 @@ describe('JobBOSS2Client', () => {
             .get('/api/v1/orders')
             .reply(500, { Message: 'Internal Server Error' });
 
-        await expect(client.getOrders({})).rejects.toThrow('JobBOSS2 API Error: 500');
+        await expect(client.getOrders({})).rejects.toThrow(/JobBOSS2 API Error: 500/);
+    });
+
+    it('should reject invalid custom API methods', async () => {
+        await expect(client.apiCall('TRACE', '/api/v1/orders')).rejects.toThrow(
+            'Invalid HTTP method: TRACE'
+        );
+    });
+
+    it('should reject unsafe custom API endpoints', async () => {
+        await expect(client.apiCall('GET', '../orders')).rejects.toThrow('Invalid endpoint path');
     });
 });

@@ -1139,9 +1139,8 @@ export class JobBOSS2Client {
       (response) => response,
       (error: AxiosError) => {
         if (error.response) {
-          throw new Error(
-            `JobBOSS2 API Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`
-          );
+          const statusText = error.response.statusText ? ` ${error.response.statusText}` : '';
+          throw new Error(`JobBOSS2 API Error: ${error.response.status}${statusText}`);
         } else if (error.request) {
           throw new Error('JobBOSS2 API: No response received from server');
         } else {
@@ -1173,9 +1172,8 @@ export class JobBOSS2Client {
       this.tokenExpiry = Date.now() + (response.data.expires_in - 300) * 1000;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        throw new Error(
-          `OAuth2 Token Error: ${error.response?.status} - ${JSON.stringify(error.response?.data)}`
-        );
+        const statusText = error.response?.statusText ? ` ${error.response.statusText}` : '';
+        throw new Error(`OAuth2 Token Error: ${error.response?.status ?? 'Unknown'}${statusText}`);
       }
       throw error;
     }
@@ -1189,6 +1187,35 @@ export class JobBOSS2Client {
     if (this.isTokenExpired()) {
       await this.fetchAccessToken();
     }
+  }
+
+  private normalizeMethod(method: string): string {
+    const normalized = method.toUpperCase();
+    const allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    if (!allowedMethods.includes(normalized)) {
+      throw new Error(`Invalid HTTP method: ${method}`);
+    }
+    return normalized;
+  }
+
+  private normalizeEndpoint(endpoint: string): string {
+    const trimmed = endpoint.trim();
+    if (!trimmed) {
+      throw new Error('Endpoint is required');
+    }
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
+      throw new Error('Endpoint must be a relative path');
+    }
+
+    const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    if (normalized.includes('..') || normalized.includes('\\')) {
+      throw new Error('Invalid endpoint path');
+    }
+
+    if (normalized === '/api/v1' || normalized.startsWith('/api/v1/') || normalized.startsWith('/oauth/')) {
+      return normalized;
+    }
+    return `/api/v1${normalized}`;
   }
 
   // Helper method to extract data from API response
@@ -1618,11 +1645,11 @@ export class JobBOSS2Client {
 
   // Generic API call method for custom endpoints
   async apiCall(method: string, endpoint: string, data?: any, params?: any): Promise<any> {
-    // Ensure endpoint starts with /api/v1/ if not already present
-    const url = endpoint.startsWith('/api/v1/') ? endpoint : `/api/v1/${endpoint.replace(/^\//, '')}`;
+    const normalizedMethod = this.normalizeMethod(method);
+    const url = this.normalizeEndpoint(endpoint);
 
     const response = await this.client.request({
-      method,
+      method: normalizedMethod,
       url,
       data,
       params,
