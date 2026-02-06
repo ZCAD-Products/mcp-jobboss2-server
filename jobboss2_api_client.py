@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
+# Maximum safety buffer for token expiry (5 minutes)
+MAX_TOKEN_BUFFER_SECONDS = 300
+
 
 class JobBOSS2Config(BaseModel):
     api_url: str
@@ -61,7 +64,7 @@ class JobBOSS2Client:
         # Set expiry with safety buffer, clamped to avoid negative expiry for short-lived tokens
         # Use half the token lifetime as buffer, but ensure the token is valid for at least 1 second
         expires_in = data["expires_in"]
-        buffer = min(300, max(0, (expires_in - 1) // 2))
+        buffer = min(MAX_TOKEN_BUFFER_SECONDS, max(0, (expires_in - 1) // 2))
         self.token_expiry = time.time() + (expires_in - buffer)
 
     def is_token_expired(self) -> bool:
