@@ -93,6 +93,33 @@ describe('JobBOSS2Client', () => {
         await expect(client.getOrders({})).rejects.toThrow(/JobBOSS2 API Error: 500/);
     });
 
+    it('should include API error response details when available', async () => {
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(200, {
+                access_token: 'mock-access-token',
+                expires_in: 3600,
+            });
+
+        nock('https://api.jobboss2.com')
+            .get('/api/v1/orders')
+            .reply(400, { message: 'Invalid filter', code: 'BAD_FILTER' });
+
+        await expect(client.getOrders({})).rejects.toThrow(
+            /JobBOSS2 API Error: 400.*Invalid filter/
+        );
+    });
+
+    it('should include OAuth token error response details when available', async () => {
+        nock('https://api.jobboss2.com')
+            .post('/oauth/token')
+            .reply(401, { error: 'invalid_client' });
+
+        await expect(client.getOrders({})).rejects.toThrow(
+            /OAuth2 Token Error: 401.*invalid_client/
+        );
+    });
+
     it('should reject invalid custom API methods', async () => {
         await expect(client.apiCall('TRACE', '/api/v1/orders')).rejects.toThrow(
             'Invalid HTTP method: TRACE'
@@ -210,5 +237,28 @@ describe('JobBOSS2Client', () => {
         const minDelay = 1_000;
         expect(delayMs).toBeGreaterThanOrEqual(minDelay);
         expect(delayMs).toBeLessThanOrEqual(2_000);
+    });
+
+    it('should log a warning when background token refresh fails', async () => {
+        jest.useFakeTimers();
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const anyClient = client as any;
+        anyClient.tokenExpiry = Date.now() + 1_000;
+        const refreshSpy = jest
+            .spyOn(anyClient, 'fetchAccessToken')
+            .mockRejectedValue(new Error('OAuth2 Token Error: 500 Internal Server Error - {"message":"refresh failed"}'));
+        anyClient.scheduleTokenRefresh();
+        await jest.advanceTimersByTimeAsync(1_100);
+
+        expect(warnSpy).toHaveBeenCalledWith(
+            '[jobboss2-client] background token refresh failed; retrying on next request',
+            expect.objectContaining({
+                message: expect.stringContaining('OAuth2 Token Error: 500'),
+            })
+        );
+
+        refreshSpy.mockRestore();
+        warnSpy.mockRestore();
+        jest.useRealTimers();
     });
 });

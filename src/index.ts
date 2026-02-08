@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { FastMCP } from 'fastmcp';
 import dotenv from 'dotenv';
 import { JobBOSS2Client } from './jobboss2-client.js';
@@ -28,7 +28,7 @@ const jobboss2Client = new JobBOSS2Client({
 
 const server = new FastMCP({
   name: 'mcp-jobboss2-server',
-  version: '2.0.0',
+  version: '3.0.0',
 });
 
 // Register all tools using the FastMCP adapter

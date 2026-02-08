@@ -115,7 +115,7 @@ const allTools = [
   ...generalTools,
 ];
 
-const allHandlers = {
+export const allHandlers = {
   ...orderHandlers,
   ...customerHandlers,
   ...quoteHandlers,
@@ -126,60 +126,80 @@ const allHandlers = {
 };
 
 export function registerTools(server: FastMCP, client: JobBOSS2Client) {
+  const registeredToolNames = new Set<string>();
+  const formatResultText = (result: unknown): string => {
+    if (typeof result === "string") {
+      return result;
+    }
+    if (result === undefined) {
+      return "null";
+    }
+    return JSON.stringify(result);
+  };
+
+  const registerTool = (
+    name: string,
+    description: string,
+    schema: any,
+    handler: (args: any) => Promise<any>,
+    successMessage?: (args: any) => string
+  ) => {
+    if (registeredToolNames.has(name)) {
+      throw new Error(`Duplicate tool registration detected: ${name}`);
+    }
+    registeredToolNames.add(name);
+
+    server.addTool({
+      name,
+      description,
+      parameters: schema,
+      execute: async (args) => {
+        try {
+          const result = await handler(args);
+          const text = successMessage ? successMessage(args) : formatResultText(result);
+          return {
+            content: [{ type: "text", text }],
+          };
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          const stack = error instanceof Error ? error.stack : undefined;
+          console.error("[mcp-jobboss2] tool execution failed", {
+            tool: name,
+            args,
+            message,
+            stack,
+          });
+          return {
+            content: [{ type: "text", text: `Error: ${message}` }],
+            isError: true,
+          };
+        }
+      },
+    });
+  };
+
   // Register manual tools
   for (const tool of allTools) {
     const handler = allHandlers[tool.name];
     const schema = toolSchemaMap[tool.name];
+    if (typeof handler !== "function") {
+      throw new Error(`Missing handler mapping for manual tool: ${tool.name}`);
+    }
     if (!schema) {
       throw new Error(`Missing schema mapping for manual tool: ${tool.name}`);
     }
 
-    server.addTool({
-      name: tool.name,
-      description: tool.description || "",
-      parameters: schema,
-      execute: async (args) => {
-        try {
-          const result = await handler(args, client);
-          return {
-            content: [{ type: "text", text: JSON.stringify(result) }],
-          };
-        } catch (error: any) {
-          return {
-            content: [{ type: "text", text: `Error: ${error.message || String(error)}` }],
-            isError: true,
-          };
-        }
-      },
-    });
+    registerTool(tool.name, tool.description || "", schema, (args) => handler(args, client));
   }
 
   // Register generated tools
   for (const config of generatedToolConfigs) {
-    server.addTool({
-      name: config.name,
-      description: config.description,
-      parameters: config.schema,
-      execute: async (args) => {
-        try {
-          const result = await config.handler(args, client);
-          
-          if (config.successMessage) {
-            return {
-              content: [{ type: "text", text: config.successMessage(args) }],
-            };
-          }
-
-          return {
-            content: [{ type: "text", text: JSON.stringify(result) }],
-          };
-        } catch (error: any) {
-          return {
-            content: [{ type: "text", text: `Error: ${error.message || String(error)}` }],
-            isError: true,
-          };
-        }
-      },
-    });
+    registerTool(
+      config.name,
+      config.description,
+      config.schema,
+      (args) => config.handler(args, client),
+      config.successMessage
+    );
   }
 }

@@ -1,5 +1,5 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { JobBOSS2Client } from '../jobboss2-client.js';
+import { ToolDefinition } from './tool-definition.js';
 import {
     GetMaterialsSchema,
     GetMaterialByPartNumberSchema,
@@ -10,193 +10,86 @@ import {
     GetPurchaseOrderLineItemSchema,
     GetPurchaseOrderByNumberSchema,
     GetVendorByCodeSchema,
-    QueryOnlyToolInputSchema,
     QueryParamsSchema,
     GetPOBundleSchema,
 } from '../schemas.js';
 
-export const inventoryTools: Tool[] = [
+export const inventoryTools: ToolDefinition[] = [
     {
         name: 'get_materials',
         description: 'Retrieve a list of materials from JobBOSS2. Supports filtering, sorting, pagination, and field selection.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                fields: { type: 'string', description: 'Comma-separated list of fields' },
-                sort: { type: 'string', description: 'Sort expression' },
-                skip: { type: 'number', description: 'Skip N records' },
-                take: { type: 'number', description: 'Take N records' },
-            },
-            additionalProperties: true,
-        },
     },
     {
         name: 'get_material_by_part_number',
         description: 'Retrieve a specific material by its part number.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                partNumber: { type: 'string', description: 'The part number to retrieve' },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['partNumber'],
-        },
     },
     {
         name: 'get_bin_locations',
         description: 'Retrieve a list of bin locations from JobBOSS2. Supports filtering, sorting, and pagination.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                fields: { type: 'string', description: 'Comma-separated list of fields' },
-                sort: { type: 'string', description: 'Sort expression' },
-                skip: { type: 'number', description: 'Skip N records' },
-                take: { type: 'number', description: 'Take N records' },
-            },
-            additionalProperties: true,
-        },
     },
     {
         name: 'get_job_materials',
         description: 'Retrieve job material postings (issues/receipts) with bin locations, costs, and related job/order information.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_job_material_by_id',
         description: 'Retrieve a specific job material record by its unique ID.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                uniqueID: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Unique identifier for the job material',
-                },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['uniqueID'],
-        },
     },
     {
         name: 'get_job_requirements',
         description: 'Retrieve job requirement/purchase suggestions including vendor codes, lead times, and required quantities.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_job_requirement_by_id',
         description: 'Retrieve a specific job requirement by unique ID.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                uniqueID: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Unique identifier for the job requirement',
-                },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['uniqueID'],
-        },
     },
     {
         name: 'get_packing_list_line_items',
         description: 'Retrieve packing list line items showing what was shipped, quantities, and job references.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_packing_lists',
         description: 'Retrieve packing list headers including ship-to, freight, and container information.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_product_codes',
         description: 'Retrieve product codes with related GL accounts and cash discount settings.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_product_code',
         description: 'Retrieve a specific product code by its identifier.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                productCode: { type: 'string', description: 'Product code to retrieve' },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['productCode'],
-        },
     },
     {
         name: 'get_purchase_order_line_items',
         description: 'Retrieve purchase order line items with quantities, costs, and routing information. Supports filtering (e.g., purchaseOrderNumber=1001).',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_purchase_order_line_item',
         description: 'Retrieve a specific purchase order line item by PO number, part number, and line item number.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                purchaseOrderNumber: { type: 'string', description: 'Purchase order number' },
-                partNumber: { type: 'string', description: 'Part number on the purchase order' },
-                itemNumber: {
-                    oneOf: [{ type: 'string' }, { type: 'number' }],
-                    description: 'Line item number',
-                },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['purchaseOrderNumber', 'partNumber', 'itemNumber'],
-        },
     },
     {
         name: 'get_purchase_order_releases',
         description: 'Retrieve purchase order release schedules showing quantities and due dates.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_purchase_orders',
         description: 'Retrieve purchase order headers including vendor, ship-to, and totals.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_purchase_order_by_number',
         description: 'Retrieve a specific purchase order by PO number.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                poNumber: { type: 'string', description: 'Purchase order number' },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['poNumber'],
-        },
     },
     {
         name: 'get_vendors',
         description: 'Retrieve vendor master records including payment terms and lead times.',
-        inputSchema: QueryOnlyToolInputSchema,
     },
     {
         name: 'get_vendor_by_code',
         description: 'Retrieve a specific vendor by vendor code.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                vendorCode: { type: 'string', description: 'Vendor code' },
-                fields: { type: 'string', description: 'Comma-separated list of fields to return' },
-            },
-            required: ['vendorCode'],
-        },
     },
     {
         name: 'get_po_bundle',
         description: 'Retrieve a purchase order with its line items and optionally releases in a single call. Returns a complete bundle for the PO.',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                poNumber: { type: 'string', description: 'Purchase order number' },
-                fields: { type: 'string', description: 'Fields for the PO header' },
-                lineItemFields: { type: 'string', description: 'Fields for line items' },
-                includeReleases: { type: 'boolean', description: 'Include releases for line items (default true)' },
-            },
-            required: ['poNumber'],
-        },
     },
 ];
 

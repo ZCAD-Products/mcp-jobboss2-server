@@ -13,7 +13,6 @@ import type {
   Quote,
   BinLocation,
   Material,
-  MaterialCreate,
   Employee,
   Estimate,
   DocumentControl,
@@ -34,7 +33,6 @@ import type {
   TimeTicket,
   Vendor,
   WorkCenter,
-  RoutingCreate,
   AttendanceTicket,
   AttendanceTicketDetail
 } from './types.js';
@@ -52,6 +50,36 @@ export class JobBOSS2Client {
   private tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   private isRefreshing = false;
   private refreshPromise: Promise<void> | null = null;
+
+  private safeSerialize(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  private formatAxiosError(prefix: string, error: AxiosError): Error {
+    if (error.response) {
+      const statusText = error.response.statusText ? ` ${error.response.statusText}` : '';
+      let detailSuffix = '';
+      if (error.response.data !== undefined) {
+        const rawDetail = this.safeSerialize(error.response.data);
+        const truncatedDetail = rawDetail.length > 500 ? `${rawDetail.slice(0, 500)}...` : rawDetail;
+        detailSuffix = ` - ${truncatedDetail}`;
+      }
+      return new Error(`${prefix}: ${error.response.status}${statusText}${detailSuffix}`);
+    }
+
+    if (error.request) {
+      return new Error(`${prefix}: No response received from server`);
+    }
+
+    return new Error(`${prefix}: ${error.message}`);
+  }
 
   constructor(config: JobBOSS2Config) {
     this.apiKey = config.apiKey;
@@ -88,14 +116,7 @@ export class JobBOSS2Client {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        if (error.response) {
-          const statusText = error.response.statusText ? ` ${error.response.statusText}` : '';
-          throw new Error(`JobBOSS2 API Error: ${error.response.status}${statusText}`);
-        } else if (error.request) {
-          throw new Error('JobBOSS2 API: No response received from server');
-        } else {
-          throw new Error(`JobBOSS2 API Error: ${error.message}`);
-        }
+        throw this.formatAxiosError('JobBOSS2 API Error', error);
       }
     );
   }
@@ -146,8 +167,7 @@ export class JobBOSS2Client {
         this.scheduleTokenRefresh();
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          const statusText = error.response?.statusText ? ` ${error.response.statusText}` : '';
-          throw new Error(`OAuth2 Token Error: ${error.response?.status ?? 'Unknown'}${statusText}`);
+          throw this.formatAxiosError('OAuth2 Token Error', error);
         }
         throw error;
       } finally {
@@ -183,8 +203,13 @@ export class JobBOSS2Client {
       }
       try {
         await this.fetchAccessToken();
-      } catch {
-        // Token refresh failures will be handled on the next request.
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        console.warn('[jobboss2-client] background token refresh failed; retrying on next request', {
+          message,
+          stack,
+        });
       }
     }, delayMs);
     this.tokenRefreshTimer.unref?.();

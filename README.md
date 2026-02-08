@@ -25,41 +25,78 @@ This MCP server provides comprehensive access to JobBOSS2 APIs:
 
 ## Prerequisites
 
-- Node.js 18 or higher
+- Bun 1.3+ (includes a Node-compatible runtime)
 - JobBOSS2 Cloud account with API access enabled
 - JobBOSS2 API credentials (API Key and API Secret)
 - OAuth2 Token URL access
 
 ## Installation
 
-### TypeScript Version
+### TypeScript + Bun
 1. Clone or download this repository
-2. Install dependencies: `npm install`
-3. Build the server: `npm run build`
-
-### Python Version
-1. Clone or download this repository
-2. Install dependencies: `pip install -r requirements.txt`
+2. Install dependencies: `bun install`
+3. Build the server: `bun run build`
 
 ## Usage
 
-### Running TypeScript Server
+### Running Server
 ```bash
-npm start
+bun run start
 ```
 
-### Running Python Server
+## Tier-One Smoke Test (Read-Only, Staging Only)
+
+Tier-one smoke validates **read-only GET tools** against a staging tenant with strict host guardrails.
+It does **not** execute any `POST`/`PATCH`/`PUT`/`DELETE` tools.
+
+Run:
+
 ```bash
-fastmcp run server.py
+bun run test:smoke:tier1
 ```
-or
-```bash
-python server.py
+
+Required environment variables:
+
+- `SMOKE_TIER1=1`
+- `SMOKE_ALLOWED_HOSTS` (comma-separated hostnames allowed for smoke execution)
+- `JOBBOSS2_API_URL`
+- `JOBBOSS2_API_KEY`
+- `JOBBOSS2_API_SECRET`
+- `JOBBOSS2_OAUTH_TOKEN_URL`
+
+Optional environment variables:
+
+- `SMOKE_BLOCKED_HOST_PATTERNS` (comma-separated patterns; merged with default production-like host blocks)
+- `SMOKE_TIER1_SEEDS_FILE` (path to JSON seed values for required detail-tool IDs)
+- `API_TIMEOUT` (milliseconds, default `30000`)
+
+Seed file format (`SMOKE_TIER1_SEEDS_FILE`):
+
+```json
+{
+  "global": {
+    "orderNumber": "SMOKE_ORDER_1001"
+  },
+  "tools": {
+    "get_order_by_id": {
+      "orderNumber": "SMOKE_ORDER_2001"
+    },
+    "get_customer_by_code": {
+      "customerCode": "SMOKE_CUST_001"
+    }
+  }
+}
 ```
+
+Notes:
+
+- Tool-specific seeds take precedence over discovered values and global seeds.
+- If a required key cannot be resolved deterministically, the smoke run fails.
+- A JSON report is written to `tmp/tier1-smoke-report.json`.
 
 ## Available Tools
 
-The server provides 35 tools organized into these categories: Orders, Order Line Items, Customers, Quotes, Materials, Employees, Estimates (Part Master), Attendance Tickets, Attendance Ticket Details, Attendance Reports, and Custom API calls.
+The server currently exposes 140+ tools (manual domain tools plus generated endpoint adapters), including Orders, Customers, Quotes, Inventory, Production, Employees, Document/Reporting, and many additional JobBOSS2 resources.
 
 ### Order Operations
 
@@ -487,13 +524,13 @@ This server uses OAuth2 client credentials flow for authentication:
 
 ### Building
 ```bash
-npm run build
+bun run build
 ```
 
 ### Watch Mode
 For development with automatic rebuilding:
 ```bash
-npm run watch
+bun run watch
 ```
 
 ### Project Structure
@@ -505,7 +542,7 @@ mcp-jobboss2-server/
 ├── dist/                     # Compiled JavaScript (generated)
 ├── .env                      # Environment variables (not in git)
 ├── .env.example              # Environment variables template
-├── package.json              # Node.js dependencies
+├── package.json              # Project dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
 └── README.md                 # This file
 ```
@@ -541,8 +578,8 @@ To obtain API credentials:
 
 ### Server won't start
 - Ensure all environment variables are set correctly in `.env`
-- Check that you've run `npm install` and `npm run build`
-- Verify Node.js version is 18 or higher
+- Check that you've run `bun install` and `bun run build`
+- Verify Bun is installed (`bun --version`)
 
 ### Authentication errors
 - Verify your API credentials are correct

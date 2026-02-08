@@ -1,4 +1,4 @@
-import { registerTools, toolSchemaMap } from '../src/fastmcp/registerTools';
+import { registerTools, toolSchemaMap, allHandlers } from '../src/fastmcp/registerTools';
 import * as schemas from '../src/schemas';
 import { orderTools } from '../src/tools/orders';
 import { customerTools } from '../src/tools/customers';
@@ -49,6 +49,36 @@ describe('FastMCP Tool Registration', () => {
             );
         } finally {
             toolSchemaMap.get_orders = originalSchema;
+        }
+    });
+
+    it('should fail fast when a manual tool handler mapping is missing', () => {
+        const handlers = allHandlers as Record<string, unknown>;
+        const originalHandler = handlers.get_orders;
+        const server = { addTool: jest.fn() };
+
+        try {
+            delete handlers.get_orders;
+            expect(() => registerTools(server as any, {} as any)).toThrow(
+                'Missing handler mapping for manual tool: get_orders'
+            );
+        } finally {
+            handlers.get_orders = originalHandler;
+        }
+    });
+
+    it('should fail fast when duplicate tool names are detected', () => {
+        const duplicateName = manualTools[0].name;
+        const duplicateConfig = { ...generatedToolConfigs[0], name: duplicateName };
+        const server = { addTool: jest.fn() };
+
+        try {
+            generatedToolConfigs.push(duplicateConfig);
+            expect(() => registerTools(server as any, {} as any)).toThrow(
+                `Duplicate tool registration detected: ${duplicateName}`
+            );
+        } finally {
+            generatedToolConfigs.pop();
         }
     });
 

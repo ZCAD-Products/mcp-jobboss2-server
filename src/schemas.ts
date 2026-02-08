@@ -9,28 +9,8 @@ export const QueryParamsSchema = z.object({
 }).catchall(z.any()); // Allow dynamic filter parameters
 
 export const NoInputSchema = z.object({}).strict();
-export const NoInputJsonSchema = {
-  type: 'object',
-  properties: {},
-  additionalProperties: false,
-} as const;
 
 export const AnyObjectSchema = z.object({}).catchall(z.any());
-export const AnyObjectJsonSchema = {
-  type: 'object',
-  additionalProperties: true,
-} as const;
-
-export const QueryOnlyToolInputSchema = {
-  type: 'object',
-  properties: {
-    fields: { type: 'string', description: 'Comma-separated list of fields (e.g., field1,field2)' },
-    sort: { type: 'string', description: 'Sort expression such as -dateEntered,+customerCode' },
-    skip: { type: 'number', description: 'Number of records to skip (pagination)' },
-    take: { type: 'number', description: 'Number of records to take (pagination)' },
-  },
-  additionalProperties: true,
-} as const;
 
 // Order schemas
 export const GetOrdersSchema = QueryParamsSchema.describe('Query parameters for getting orders');
@@ -189,14 +169,6 @@ export const CreateOrderRoutingSchema = z.object({
   workCenter: z.string().nullable().optional().describe('Work center assigned to the routing'),
   workCenterOrVendor: z.string().describe('Work center or vendor identifier'),
 }).catchall(z.any());
-
-// Update CreateOrderLineItemSchema to include orderRoutings
-// Note: In a real scenario we might need to handle the circular dependency more carefully or just define it here.
-// For now, I'll just redefine it or assume it's fine since I'm exporting them.
-// Actually, I already defined CreateOrderLineItemSchema above without orderRoutings fully typed to avoid issues,
-// but I can add it now if I want.
-// Let's just leave it as z.array(z.any()) in the first definition or update it.
-// I'll leave it as is in the first definition for simplicity in this extraction.
 
 export const UpdateOrderLineItemSchema = z.object({
   orderNumber: z.string().describe('The order number'),
@@ -470,6 +442,14 @@ export const CreateOrderFromQuoteSchema = z.object({
   copyAllLineItems: z.boolean().optional().describe('Copy all line items from quote (default true)'),
   lineItemNumbers: z.array(z.number()).optional().describe('Specific line item numbers to copy (if not copying all)'),
   overrides: z.record(z.any()).optional().describe('Field overrides for the new order'),
+}).superRefine((value, context) => {
+  if (value.copyAllLineItems === false && (!value.lineItemNumbers || value.lineItemNumbers.length === 0)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['lineItemNumbers'],
+      message: 'lineItemNumbers is required when copyAllLineItems is false',
+    });
+  }
 });
 
 export const GetPOBundleSchema = z.object({
