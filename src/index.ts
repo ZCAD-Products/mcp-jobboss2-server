@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
-import { FastMCP } from 'fastmcp';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import http from 'node:http';
 import dotenv from 'dotenv';
 import { JobBOSS2Client } from './jobboss2-client.js';
-import { registerTools } from './fastmcp/registerTools.js';
+import { registerTools } from './mcp/registerTools.js';
 
 // Load environment variables
 dotenv.config();
@@ -26,12 +29,12 @@ const jobboss2Client = new JobBOSS2Client({
   timeout: API_TIMEOUT,
 });
 
-const server = new FastMCP({
+const server = new McpServer({
   name: 'mcp-jobboss2-server',
   version: '3.0.0',
 });
 
-// Register all tools using the FastMCP adapter
+// Register all tools
 registerTools(server, jobboss2Client);
 
 async function runServer() {
@@ -40,11 +43,17 @@ async function runServer() {
   const port = isNaN(portRaw) ? 8000 : portRaw;
 
   if (transport === "http" || transport === "httpStream" || transport === "sse") {
-    await server.start({ transportType: "httpStream", httpStream: { port } });
-    console.error(`JobBOSS2 FastMCP Server running on HTTP (Streamable HTTP) at port ${port}`);
+    const httpTransport = new StreamableHTTPServerTransport({});
+    await server.connect(httpTransport);
+    const httpServer = http.createServer(async (req, res) => {
+      await httpTransport.handleRequest(req, res);
+    });
+    httpServer.listen(port);
+    console.error(`JobBOSS2 MCP Server running on HTTP (Streamable HTTP) at port ${port}`);
   } else {
-    await server.start({ transportType: "stdio" });
-    console.error('JobBOSS2 FastMCP Server running on stdio');
+    const stdioTransport = new StdioServerTransport();
+    await server.connect(stdioTransport);
+    console.error('JobBOSS2 MCP Server running on stdio');
   }
 }
 

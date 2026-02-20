@@ -1,4 +1,4 @@
-import { FastMCP } from "fastmcp";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { JobBOSS2Client } from "../jobboss2-client.js";
 import * as schemas from "../schemas.js";
 
@@ -131,7 +131,7 @@ export const allHandlers = {
   ...generalHandlers,
 };
 
-export function registerTools(server: FastMCP, client: JobBOSS2Client) {
+export function registerTools(server: McpServer, client: JobBOSS2Client) {
   const registeredToolNames = new Set<string>();
   const readOnlyModeEnabled = isReadOnlyModeEnabled(process.env);
   const formatResultText = (result: unknown): string => {
@@ -179,15 +179,17 @@ export function registerTools(server: FastMCP, client: JobBOSS2Client) {
     }
     registeredToolNames.add(name);
 
-    server.addTool({
+    server.registerTool(
       name,
-      description,
-      parameters: schema,
-      execute: async (args) => {
+      {
+        description,
+        inputSchema: schema,
+      },
+      async (args: any) => {
         const readOnlyBlockReason = getReadOnlyBlockReason(name, args);
         if (readOnlyBlockReason) {
           return {
-            content: [{ type: "text", text: `Error: ${readOnlyBlockReason}` }],
+            content: [{ type: "text" as const, text: `Error: ${readOnlyBlockReason}` }],
             isError: true,
           };
         }
@@ -196,7 +198,7 @@ export function registerTools(server: FastMCP, client: JobBOSS2Client) {
           const result = await handler(args);
           const text = successMessage ? successMessage(args) : formatResultText(result);
           return {
-            content: [{ type: "text", text }],
+            content: [{ type: "text" as const, text }],
           };
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : String(error);
@@ -208,12 +210,12 @@ export function registerTools(server: FastMCP, client: JobBOSS2Client) {
             stack,
           });
           return {
-            content: [{ type: "text", text: `Error: ${message}` }],
+            content: [{ type: "text" as const, text: `Error: ${message}` }],
             isError: true,
           };
         }
-      },
-    });
+      }
+    );
   };
 
   // Register manual tools
