@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { JobBOSS2Client } from '../../src/jobboss2-client';
-import { allHandlers, toolSchemaMap } from '../../src/fastmcp/registerTools';
+import { allHandlers, toolSchemaMap } from '../../src/mcp/registerTools';
 import { orderTools } from '../../src/tools/orders';
 import { customerTools } from '../../src/tools/customers';
 import { quoteTools } from '../../src/tools/quotes';

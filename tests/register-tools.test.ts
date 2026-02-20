@@ -1,4 +1,4 @@
-import { registerTools, toolSchemaMap, allHandlers } from '../src/fastmcp/registerTools';
+import { registerTools, toolSchemaMap, allHandlers } from '../src/mcp/registerTools';
 import * as schemas from '../src/schemas';
 import { orderTools } from '../src/tools/orders';
 import { customerTools } from '../src/tools/customers';
@@ -8,7 +8,7 @@ import { productionTools } from '../src/tools/production';
 import { employeeTools } from '../src/tools/employees';
 import { generalTools } from '../src/tools/general';
 import { generatedToolConfigs } from '../src/tools/generated';
-import { READ_ONLY_MODE_ENV_VAR } from '../src/fastmcp/mutationPolicy';
+import { READ_ONLY_MODE_ENV_VAR } from '../src/mcp/mutationPolicy';
 
 const manualTools = [
     ...orderTools,
@@ -20,16 +20,20 @@ const manualTools = [
     ...generalTools,
 ];
 
-function getRegisteredToolByName(server: { addTool: jest.Mock }, toolName: string): any {
-    const registeredTools = server.addTool.mock.calls.map(([config]) => config);
-    const found = registeredTools.find((toolConfig) => toolConfig.name === toolName);
+function getRegisteredToolByName(server: { registerTool: jest.Mock }, toolName: string): any {
+    const registrations = server.registerTool.mock.calls.map(([name, config, cb]: [string, any, any]) => ({
+        name,
+        ...config,
+        execute: cb,
+    }));
+    const found = registrations.find((reg: any) => reg.name === toolName);
     if (!found) {
         throw new Error(`Tool not found in registration mock: ${toolName}`);
     }
     return found;
 }
 
-describe('FastMCP Tool Registration', () => {
+describe('MCP Tool Registration', () => {
     it('should have explicit schema mappings for all manual tools', () => {
         const missing = manualTools
             .map((tool) => tool.name)
@@ -50,7 +54,7 @@ describe('FastMCP Tool Registration', () => {
 
     it('should fail fast when a manual tool schema mapping is missing', () => {
         const originalSchema = toolSchemaMap.get_orders;
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
 
         try {
             delete toolSchemaMap.get_orders;
@@ -65,7 +69,7 @@ describe('FastMCP Tool Registration', () => {
     it('should fail fast when a manual tool handler mapping is missing', () => {
         const handlers = allHandlers as Record<string, unknown>;
         const originalHandler = handlers.get_orders;
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
 
         try {
             delete handlers.get_orders;
@@ -80,7 +84,7 @@ describe('FastMCP Tool Registration', () => {
     it('should fail fast when duplicate tool names are detected', () => {
         const duplicateName = manualTools[0].name;
         const duplicateConfig = { ...generatedToolConfigs[0], name: duplicateName };
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
 
         try {
             generatedToolConfigs.push(duplicateConfig);
@@ -93,18 +97,18 @@ describe('FastMCP Tool Registration', () => {
     });
 
     it('should register all manual and generated tools when mappings are complete', () => {
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
 
         registerTools(server as any, {} as any);
 
-        expect(server.addTool).toHaveBeenCalledTimes(manualTools.length + generatedToolConfigs.length);
+        expect(server.registerTool).toHaveBeenCalledTimes(manualTools.length + generatedToolConfigs.length);
     });
 
     it('should block mutation tools when read-only mode is enabled', async () => {
         const originalValue = process.env[READ_ONLY_MODE_ENV_VAR];
         process.env[READ_ONLY_MODE_ENV_VAR] = '1';
 
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
         const client = {
             createOrder: jest.fn(),
         };
@@ -130,7 +134,7 @@ describe('FastMCP Tool Registration', () => {
         const originalValue = process.env[READ_ONLY_MODE_ENV_VAR];
         process.env[READ_ONLY_MODE_ENV_VAR] = 'true';
 
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
         const client = {
             getOrders: jest.fn().mockResolvedValue([{ orderNumber: '1001' }]),
         };
@@ -155,7 +159,7 @@ describe('FastMCP Tool Registration', () => {
         const originalValue = process.env[READ_ONLY_MODE_ENV_VAR];
         process.env[READ_ONLY_MODE_ENV_VAR] = '1';
 
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
         const client = {
             apiCall: jest.fn(),
         };
@@ -185,7 +189,7 @@ describe('FastMCP Tool Registration', () => {
         const originalValue = process.env[READ_ONLY_MODE_ENV_VAR];
         process.env[READ_ONLY_MODE_ENV_VAR] = '1';
 
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
         const client = {
             apiCall: jest.fn().mockResolvedValue({ Data: [] }),
         };
@@ -214,7 +218,7 @@ describe('FastMCP Tool Registration', () => {
         const originalValue = process.env[READ_ONLY_MODE_ENV_VAR];
         delete process.env[READ_ONLY_MODE_ENV_VAR];
 
-        const server = { addTool: jest.fn() };
+        const server = { registerTool: jest.fn() };
         const client = {
             createOrder: jest.fn().mockResolvedValue({ orderNumber: 'NEW123' }),
         };

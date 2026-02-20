@@ -3,7 +3,7 @@ import {
     isMutationToolName,
     isMutatingHttpMethod,
     isReadOnlyModeEnabled,
-} from '../src/fastmcp/mutationPolicy';
+} from '../src/mcp/mutationPolicy';
 
 describe('mutation policy', () => {
     it('classifies mutation tool names', () => {
