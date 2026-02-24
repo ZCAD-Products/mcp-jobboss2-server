@@ -747,3 +747,25 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ### v1.0.0
 - Initial release with basic job, customer, and work order operations
+
+
+### 100% Rust Switchover Commitment
+
+This branch is committed to a full Rust migration. See `RUST_SWITCHOVER_PLAN.md` for the definition of done, phased execution, and cutover criteria.
+
+## Rust Runtime Wrapper
+
+A Rust runtime is available in `rust/`. It now runs a native MCP stdio server, executes a migrated native Rust tool subset directly, and falls back to Bun for the remaining tools during migration.
+
+### Coverage
+- Includes **all tools** exposed by the TypeScript MCP via hybrid execution (native Rust for migrated tools, Bun fallback for remaining tools).
+- This guarantees parity for manual and generated tools without maintaining duplicate endpoint mappings.
+
+### Build & Run Rust Wrapper
+```bash
+cd rust
+cargo build --release
+./target/release/jobboss2-mcp-rust
+```
+
+The wrapper inherits the same environment variables as the Bun server (`JOBBOSS2_API_URL`, `JOBBOSS2_API_KEY`, `JOBBOSS2_API_SECRET`, `JOBBOSS2_OAUTH_TOKEN_URL`, etc.) because it launches the existing server process.
